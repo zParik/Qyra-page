@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   QUIRE — DOSSIER / CLASSIFIED FIELD MANUAL
+   QYRA — DOSSIER / CLASSIFIED FIELD MANUAL
    ═══════════════════════════════════════════════════════════════════ */
 
 :root {
@@ -214,6 +214,10 @@ ul { list-style: none; }
 .case-summary { font-family: var(--f-typewriter); font-size: 1.02rem; line-height: 1.65; color: var(--ink); max-width: 46ch; margin-bottom: 1.6rem; }
 .case-summary .redacted { background: var(--redact); color: var(--redact); padding: 0 0.3em; user-select: none; letter-spacing: -0.05em; transition: color 200ms; cursor: help; text-decoration: underline dotted oklch(32% 0.008 80 / 0.6); text-underline-offset: 3px; }
 .case-summary .redacted:hover { color: var(--paper); }
+
+@media (hover: none) {
+  .case-summary .redacted { color: var(--paper); }
+}
 
 .case-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.75rem; }
 .btn-stamp { display: inline-flex; align-items: center; gap: 0.6rem; padding: 0.85rem 1.4rem; background: var(--ink); color: var(--paper); font-family: var(--f-mono); font-size: 0.82rem; letter-spacing: 0.18em; text-transform: uppercase; border: 2px solid var(--ink); position: relative; transition: transform 120ms, box-shadow 120ms; }
