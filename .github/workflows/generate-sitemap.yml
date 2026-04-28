@@ -1,0 +1,32 @@
+name: Generate Sitemap
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sitemap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate sitemap
+        uses: cicirello/generate-sitemap@v1
+        with:
+          base-url-path: https://zparik.github.io/Qyra-page/
+          include-pdf: true
+          additional-extensions: msi deb rpm appimage
+
+      - name: Commit updated sitemap
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sitemap.xml
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: auto-update sitemap.xml"
+            git push
+          fi

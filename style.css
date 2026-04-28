@@ -562,6 +562,46 @@ ul { list-style: none; }
   .classified-bar .left span:last-child { display: none; }
 }
 
+/* Intel brief — competitive comparison table */
+.intel-brief { border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); background: var(--paper-deep); }
+.intel-brief-inner { max-width: 90rem; margin: 0 auto; padding: clamp(2.5rem, 5vw, 4rem) clamp(1rem, 4vw, 3rem); }
+
+.intel-table-wrap { overflow-x: auto; border: 2px solid var(--ink); margin-top: 1.5rem; }
+.intel-table { width: 100%; border-collapse: collapse; font-family: var(--f-typewriter); font-size: 0.88rem; min-width: 600px; }
+
+.intel-table thead tr { background: var(--ink); color: var(--paper); }
+.intel-table th {
+  font-family: var(--f-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 0.75rem 1.2rem;
+  text-align: left;
+  font-weight: 700;
+}
+.intel-table td {
+  padding: 0.75rem 1.2rem;
+  border-bottom: 1px dashed var(--ink-faint);
+  color: var(--ink-soft);
+  vertical-align: top;
+  line-height: 1.45;
+}
+.intel-table tr:last-child td { border-bottom: none; }
+.intel-table tbody tr:hover td { background: oklch(94% 0.018 84); }
+.intel-table td:first-child {
+  font-family: var(--f-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.it-brand { font-family: var(--f-stencil); font-weight: 800; font-size: 1rem; letter-spacing: 0.04em; color: var(--paper); }
+.it-win  { color: var(--stamp-green) !important; font-weight: 600; }
+.it-mid  { color: var(--ink-soft) !important; }
+.it-lose { color: var(--stamp-red-deep) !important; }
+
 /* Grid/flex children that hold text must be allowed to shrink below content width */
 .req-item > * { min-width: 0; }
 .op-row > *   { min-width: 0; }
