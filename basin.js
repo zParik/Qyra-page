@@ -21,7 +21,7 @@
 
   const config = {
     simRes: 128,
-    dyeRes: window.innerWidth < 720 ? 640 : 1024,
+    dyeRes: window.innerWidth < 720 ? 720 : 1200,
     velocityDissipation: 2.4,
     pressure: 0.8,
     pressureIterations: 20,
@@ -222,6 +222,11 @@
       float hash (vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
       void main () {
         vec3 a = max(texture2D(uTexture, vUv).rgb, 0.0);
+        // Advection blurs the ink a little every frame. A contrast curve on
+        // its density keeps edges crisp: faint washes clear to water, bands
+        // stay full strength, as ink does on a real size bath.
+        float d = dot(a, vec3(0.3333));
+        a *= smoothstep(0.12, 0.62, d) * 1.25 / max(d, 0.001) * min(d, 1.6);
         vec3 c = paper * exp(-a);
         c -= (hash(floor(vUv * res)) - 0.5) * 0.014;
         gl_FragColor = vec4(c, 1.0);

@@ -245,7 +245,8 @@ p { margin: 0; text-wrap: pretty; }
 .hero-price .now { color: var(--fg0); }
 .hero-price strong { font-size: 22px; }
 
-.hero-actions { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 12px; }
+.hero-actions { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 10px; }
+.hero-actions .btn { padding: 0 20px; }
 
 .hero-meta { margin-top: 18px; font-size: 14px; color: var(--fg2); }
 .hero-meta a { color: var(--fg1); }
@@ -504,6 +505,22 @@ p { margin: 0; text-wrap: pretty; }
 
 /* ── Privacy ─────────────────────────────────────────────────────────── */
 
+/* The visitor's own marbling, printed full size behind the privacy promise. */
+.sheet-private {
+  background-color: var(--paper-1);
+  background-image: var(--print, none);
+  background-size: cover;
+  background-position: 70% 50%;
+}
+.sheet-private .print { display: none; }
+.sheet-private .sheet-inner { padding-top: clamp(72px, 10vw, 140px); padding-bottom: clamp(72px, 10vw, 140px); }
+.private-grid > * {
+  background: oklch(0.995 0.003 85 / 0.94);
+  border-radius: 3px;
+  box-shadow: 0 1px 0 var(--line), 0 18px 44px oklch(0.29 0.08 265 / 0.14);
+  padding: clamp(24px, 3.5vw, 44px);
+}
+.private-grid > h2 { max-width: none; }
 .private-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
