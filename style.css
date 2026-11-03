@@ -136,12 +136,14 @@ p { margin: 0; text-wrap: pretty; }
 }
 .nav-mark {
   display: inline-flex; align-items: center; gap: 10px;
+  min-height: 44px;
   color: var(--fg0); text-decoration: none;
   font-weight: 600; font-size: 20px; letter-spacing: -0.01em;
 }
 .nav-links { display: flex; gap: 28px; margin-left: auto; }
 .nav-links a {
   color: var(--fg1); text-decoration: none; font-size: 15px; font-weight: 500;
+  padding: 10px 2px;
 }
 .nav-links a:hover { color: var(--fg0); }
 .nav-cta {
@@ -628,6 +630,19 @@ p { margin: 0; text-wrap: pretty; }
 
 /* ── Smaller screens ─────────────────────────────────────────────────── */
 
+/* Phones on their side: keep the whole offer and the Download button on
+   one short screen. */
+@media (max-height: 540px) and (min-width: 761px) {
+  .basin { min-height: 0; height: auto; padding-top: 72px; padding-bottom: 24px; }
+  .hero-sheet { padding: 20px 28px; width: min(600px, 62vw); }
+  .hero-sheet h1 { font-size: clamp(28px, 4vw, 40px); }
+  .hero-offer { margin-top: 12px; font-size: 16px; }
+  .hero-price { margin-top: 12px; padding: 8px 0; }
+  .hero-actions { margin-top: 14px; }
+  .btn { min-height: 48px; }
+  .hero-meta { display: none; }
+}
+
 @media (max-width: 1000px) {
   .families { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .private-grid { grid-template-columns: 1fr; }
@@ -643,12 +658,23 @@ p { margin: 0; text-wrap: pretty; }
   .basin {
     height: auto; min-height: 100svh; max-height: none;
     align-items: end;
-    padding: 46svh 16px 24px;
+    /* Enough water above the sheet to see the feather, little enough that
+       the Download button stays on the first screen. */
+    padding: clamp(96px, 22svh, 200px) 16px 24px;
   }
-  .hero-sheet { padding: 28px 22px 24px; }
+  .hero-sheet { padding: 22px 20px 22px; }
+  .hero-sheet h1 { font-size: clamp(32px, 9.6vw, 44px); line-height: 1; }
+  .hero-offer { margin-top: 16px; }
+  .hero-price { margin-top: 16px; padding: 10px 0; }
+  .hero-actions { margin-top: 18px; }
   .hero-offer, .lede, .private-body > p { font-size: 17px; }
   .btn { width: 100%; justify-content: space-between; }
-  .basin-hint { top: 76px; bottom: auto; right: 16px; }
+  /* Label over its meta line, so neither wraps on a narrow phone. */
+  .btn-primary {
+    flex-direction: column; align-items: flex-start; justify-content: center;
+    gap: 2px; padding: 10px 20px;
+  }
+  .basin-hint { top: 68px; bottom: auto; right: 16px; font-size: 13px; }
 
   .ledger { margin-top: 32px; }
   .ledger-head { display: none; }
@@ -669,10 +695,22 @@ p { margin: 0; text-wrap: pretty; }
   .win-strip { display: none; }
   .win-canvas { padding: 16px 12px; }
   .win-tab:not(.is-on) { display: none; }
+  .win-tab { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .win-bar { height: auto; flex-wrap: wrap; gap: 4px; padding: 6px 8px; }
+  .win-tool { padding: 0 10px; height: 36px; }
+  .win-sp { display: none; }
+  .win-reset { margin-left: auto; }
 
   .dl-grid { grid-template-columns: 1fr; gap: 32px; }
   .dl-item { grid-template-columns: 90px 1fr; }
   .dl-size { grid-column: 2; }
 
   .foot p:first-of-type { margin-left: 0; }
+}
+
+/* Small phones: less water, so the Download button clears the fold. */
+@media (max-width: 760px) and (max-height: 640px) {
+  .basin { padding-top: 84px; }
+  .hero-offer { font-size: 16px; line-height: 1.45; }
+  .basin-hint { display: none; }
 }

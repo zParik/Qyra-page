@@ -111,7 +111,7 @@
       // A Mac or a phone: Qyra runs on neither, so send them to the full list.
       primary.href = "#download";
       primaryLabel.textContent = "Get it for your PC";
-      primaryMeta.textContent = os === "mac" ? "Linux and Windows only" : "for Linux and Windows";
+      primaryMeta.textContent = os === "mac" ? "Qyra runs on Linux and Windows" : "Linux and Windows";
       secondary.textContent = "See all installers";
     }
   }
