@@ -323,7 +323,7 @@
     // The main eye sits right of the washi sheet on wide screens, above it on tall ones.
     const eyes = wide
       ? [0.71, 0.46, 0.36, 24, 0.99, 0.06, 0.24, 12, 0.03, 0.04, 0.2, 10]
-      : [0.5, 0.75, 0.44, 22, 0.04, 0.22, 0.24, 12, 0.97, 0.98, 0.22, 12];
+      : [0.5, 0.88, 0.22, 16, 0.02, 0.62, 0.16, 10, 0.98, 0.3, 0.16, 10];
     use("rings", dye.write, { aspect: aspect(), eyes, sumi: INK.sumi, indigo: INK.indigo, rose: INK.rose });
     dye.swap();
   }
@@ -479,9 +479,9 @@
     const t0 = performance.now() + 500;
     const wide = canvas.width > canvas.height;
     const cx = wide ? 0.71 : 0.5;
-    const cy = wide ? 0.5 : 0.75;
-    const span = wide ? 0.034 : 0.05;
-    const reach = wide ? 0.3 : 0.2;
+    const cy = wide ? 0.5 : 0.88;
+    const span = wide ? 0.034 : 0.03;
+    const reach = wide ? 0.3 : 0.1;
     const steps = 36;
     // One slow stroke up through the eye draws the rings into a feather;
     // two lighter tines beside it, drawn down, give it barbs.
@@ -534,7 +534,10 @@
     if (!g) return null;
     let halfFloat, linear;
     if (isGL2) {
+      // Either extension makes half-float targets renderable; mobile GPUs
+      // often have only the half-float one.
       g.getExtension("EXT_color_buffer_float");
+      g.getExtension("EXT_color_buffer_half_float");
       // Half-float textures are always filterable in WebGL2.
       linear = true;
       halfFloat = g.HALF_FLOAT;
@@ -544,21 +547,29 @@
       linear = !!g.getExtension("OES_texture_half_float_linear");
       halfFloat = hf.HALF_FLOAT_OES;
     }
+    // Can a half-float texture of this format be drawn into here?
+    const renders = (f) => {
+      const tex = g.createTexture();
+      g.bindTexture(g.TEXTURE_2D, tex);
+      g.texImage2D(g.TEXTURE_2D, 0, f.internal, 4, 4, 0, f.format, halfFloat, null);
+      const fb = g.createFramebuffer();
+      g.bindFramebuffer(g.FRAMEBUFFER, fb);
+      g.framebufferTexture2D(g.FRAMEBUFFER, g.COLOR_ATTACHMENT0, g.TEXTURE_2D, tex, 0);
+      const ok = g.checkFramebufferStatus(g.FRAMEBUFFER) === g.FRAMEBUFFER_COMPLETE;
+      g.bindFramebuffer(g.FRAMEBUFFER, null);
+      g.deleteFramebuffer(fb);
+      g.deleteTexture(tex);
+      return ok;
+    };
     const fmt = (internal, format) => ({ internal, format });
     const rgba = isGL2 ? fmt(g.RGBA16F, g.RGBA) : fmt(g.RGBA, g.RGBA);
-    const rg = isGL2 ? fmt(g.RG16F, g.RG) : rgba;
-    const r = isGL2 ? fmt(g.R16F, g.RED) : rgba;
+    if (!renders(rgba)) return null;
+    // One- and two-channel targets save memory; fall back to RGBA where a
+    // device cannot render into them.
+    const rg = isGL2 && renders(fmt(g.RG16F, g.RG)) ? fmt(g.RG16F, g.RG) : rgba;
+    const r = isGL2 && renders(fmt(g.R16F, g.RED)) ? fmt(g.R16F, g.RED) : rgba;
     g.ext = { halfFloat, linear, rgba, rg, r };
-    // Check that half-float targets render here.
-    const tex = g.createTexture();
-    g.bindTexture(g.TEXTURE_2D, tex);
-    g.texImage2D(g.TEXTURE_2D, 0, rgba.internal, 4, 4, 0, rgba.format, halfFloat, null);
-    const fb = g.createFramebuffer();
-    g.bindFramebuffer(g.FRAMEBUFFER, fb);
-    g.framebufferTexture2D(g.FRAMEBUFFER, g.COLOR_ATTACHMENT0, g.TEXTURE_2D, tex, 0);
-    const ok = g.checkFramebufferStatus(g.FRAMEBUFFER) === g.FRAMEBUFFER_COMPLETE;
-    g.bindFramebuffer(g.FRAMEBUFFER, null);
-    return ok ? g : null;
+    return g;
   }
 
   function makeProgram(vs, fs) {
