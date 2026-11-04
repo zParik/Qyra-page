@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//tmp/quire-design/pdf-tools/project/**)"
+    ]
+  }
+}
