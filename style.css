@@ -146,6 +146,22 @@ p { margin: 0; text-wrap: pretty; }
   padding: 10px 2px;
 }
 .nav-links a:hover { color: var(--fg0); }
+/* Over ink (set by basin.js from the pixels under each label) a label gets
+   a paper backing, like the basin hint. The padding is always there, so
+   the backing appears without moving anything. */
+.nav-mark, .nav-links a {
+  border-radius: 999px;
+  transition: background-color 0.35s var(--ease), box-shadow 0.35s var(--ease), color 0.35s var(--ease);
+}
+.nav-links a { padding: 8px 12px; }
+.nav-links { gap: 8px; }
+.nav-mark { padding: 4px 14px 4px 4px; margin-left: -4px; }
+.nav-mark.on-ink,
+.nav-links a.on-ink {
+  background: oklch(0.995 0.003 85 / 0.9);
+  box-shadow: 0 2px 8px oklch(0.29 0.08 265 / 0.12);
+  color: var(--fg0);
+}
 .nav-cta {
   height: 40px; padding: 0 18px;
   display: inline-flex; align-items: center;
