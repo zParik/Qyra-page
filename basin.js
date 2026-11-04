@@ -1,9 +1,10 @@
 // The ink basin: a small stable-fluid simulation (semi-Lagrangian advection,
 // Jacobi pressure solve) in WebGL. The dye texture holds ink absorbance per
 // colour channel, so overlapping inks darken the way real ink on water does.
-// Ink only moves when the visitor touches the water, or once on load; the loop
-// stops when the water settles, when the basin scrolls out of view and when the
-// tab is hidden.
+// A slow current keeps the ink drifting; the visitor's strokes and drops ride
+// on top of it. While nobody touches the water the loop runs at 30 fps, and
+// it stops when the basin scrolls out of view or the tab is hidden. With
+// reduced motion there is no current and the ink moves only when touched.
 (function () {
   "use strict";
 
@@ -22,12 +23,16 @@
   const config = {
     simRes: 128,
     dyeRes: window.innerWidth < 720 ? 720 : 1200,
-    velocityDissipation: 2.4,
+    // How fast a stroke's momentum fades (per second). Lower keeps water moving.
+    velocityDissipation: 1.4,
     pressure: 0.8,
     pressureIterations: 20,
-    curl: 3,
-    splatRadius: 0.0022,
-    splatForce: 5200,
+    // Vorticity confinement: curls the ink into eddies instead of smears.
+    curl: 5,
+    splatRadius: 0.0026,
+    splatForce: 6200,
+    // The background current, in sim texels per second at its strongest.
+    current: reduceMotion ? 0 : 0.8,
   };
 
   const gl = getContext(canvas);
@@ -151,6 +156,29 @@
       #endif
         gl_FragColor = result / (1.0 + dissipation * dt);
       }`,
+    // MacCormack correction for the dye: advect forward, advect that back,
+    // and add back half the round-trip error. Plain semi-Lagrangian
+    // advection blurs the ink a little every frame, which a drifting basin
+    // turns into grey wash within half a minute. The result is clamped to the
+    // four source texels it came from, so the correction cannot overshoot.
+    maccormack: head + `
+      uniform sampler2D uVelocity, uSource, uForward, uBackward;
+      uniform vec2 texelSize, dyeTexelSize;
+      uniform float dt;
+      void main () {
+        vec2 coord = vUv - dt * texture2D(uVelocity, vUv).xy * texelSize;
+        vec2 st = coord / dyeTexelSize - 0.5;
+        vec2 base = (floor(st) + 0.5) * dyeTexelSize;
+        vec4 a = texture2D(uSource, base);
+        vec4 b = texture2D(uSource, base + vec2(dyeTexelSize.x, 0.0));
+        vec4 c = texture2D(uSource, base + vec2(0.0, dyeTexelSize.y));
+        vec4 d = texture2D(uSource, base + dyeTexelSize);
+        vec4 lo = min(min(a, b), min(c, d));
+        vec4 hi = max(max(a, b), max(c, d));
+        vec4 fwd = texture2D(uForward, vUv);
+        vec4 corrected = fwd + 0.5 * (texture2D(uSource, vUv) - texture2D(uBackward, vUv));
+        gl_FragColor = clamp(corrected, lo, hi);
+      }`,
     divergence: head + `
       uniform sampler2D uVelocity;
       void main () {
@@ -199,6 +227,21 @@
         float B = texture2D(uPressure, vB).x;
         float d = texture2D(uDivergence, vUv).x;
         gl_FragColor = vec4((L + R + B + T - d) * 0.25, 0.0, 0.0, 1.0);
+      }`,
+    // A slow, divergence-free current from a drifting stream function:
+    // velocity = (dpsi/dy, -dpsi/dx), so it stirs without piling water up.
+    current: head + `
+      uniform sampler2D uVelocity;
+      uniform float aspect, t, strength;
+      void main () {
+        vec2 p = vec2(vUv.x * aspect, vUv.y) * 2.4;
+        float a = p.x + t * 0.21;
+        float b = p.y * 1.3 - t * 0.17;
+        float c = (p.x * 0.7 - p.y * 0.9) * 1.7 + t * 0.13;
+        float dx = cos(a) * cos(b) + 0.6 * 1.7 * 0.7 * cos(c);
+        float dy = -1.3 * sin(a) * sin(b) - 0.6 * 1.7 * 0.9 * cos(c);
+        vec2 v = texture2D(uVelocity, vUv).xy + strength * vec2(dy, -dx);
+        gl_FragColor = vec4(v, 0.0, 1.0);
       }`,
     gradient: head + `
       uniform sampler2D uPressure, uVelocity;
@@ -251,7 +294,7 @@
   gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
   gl.enableVertexAttribArray(0);
 
-  let dye, velocity, divergence, curlTarget, pressure;
+  let dye, dyeForward, dyeBackward, velocity, divergence, curlTarget, pressure;
 
   function blit(target) {
     if (target) {
@@ -299,6 +342,8 @@
     const dyeRes = resolution(config.dyeRes);
     const filter = ext.linear ? gl.LINEAR : gl.NEAREST;
     dye = doubleFbo(dyeRes.w, dyeRes.h, ext.rgba, filter);
+    dyeForward = fbo(dyeRes.w, dyeRes.h, ext.rgba, filter);
+    dyeBackward = fbo(dyeRes.w, dyeRes.h, ext.rgba, filter);
     velocity = doubleFbo(simRes.w, simRes.h, ext.rg, filter);
     divergence = fbo(simRes.w, simRes.h, ext.r, gl.NEAREST);
     curlTarget = fbo(simRes.w, simRes.h, ext.r, gl.NEAREST);
@@ -329,8 +374,16 @@
   }
 
   // ── Simulation step ───────────────────────────────────────────────────
-  function step(dt) {
+  function step(dt, now) {
     const sim = { texelSize: velocity.texel };
+    if (config.current > 0) {
+      // Scaled by the velocity's decay so the current settles at config.current.
+      use("current", velocity.write, {
+        ...sim, uVelocity: velocity.read, aspect: aspect(), t: now / 1000,
+        strength: config.current * config.velocityDissipation * dt,
+      });
+      velocity.swap();
+    }
     use("curl", curlTarget, { ...sim, uVelocity: velocity.read });
     use("vorticity", velocity.write, { ...sim, uVelocity: velocity.read, uCurl: curlTarget, curl: config.curl, dt });
     velocity.swap();
@@ -348,9 +401,10 @@
       dt, dissipation: config.velocityDissipation,
     });
     velocity.swap();
-    use("advection", dye.write, {
-      ...sim, dyeTexelSize: dye.texel, uVelocity: velocity.read, uSource: dye.read, dt, dissipation: 0,
-    });
+    const dyeSim = { ...sim, dyeTexelSize: dye.texel, uVelocity: velocity.read, dissipation: 0 };
+    use("advection", dyeForward, { ...dyeSim, uSource: dye.read, dt });
+    use("advection", dyeBackward, { ...dyeSim, uSource: dyeForward, dt: -dt });
+    use("maccormack", dye.write, { ...dyeSim, uSource: dye.read, uForward: dyeForward, uBackward: dyeBackward, dt });
     dye.swap();
   }
 
@@ -369,7 +423,7 @@
   // A drop: clear water or ink lands and spreads the rings outward.
   function drop(x, y, ink) {
     const a = aspect();
-    use("radial", velocity.write, { texelSize: velocity.texel, uTarget: velocity.read, aspect: a, point: [x, y], radius: 0.0016, force: 40 });
+    use("radial", velocity.write, { texelSize: velocity.texel, uTarget: velocity.read, aspect: a, point: [x, y], radius: 0.0018, force: 95 });
     velocity.swap();
     if (ink) {
       use("splat", dye.write, { texelSize: dye.texel, uTarget: dye.read, aspect: a, point: [x, y], color: ink.map((c) => c * 1.1), radius: 0.00035 });
@@ -385,11 +439,14 @@
   let visible = true;
   let lastTime = 0;
   let settleUntil = 0;
+  let lastInput = performance.now();
+  let lastPrint = 0;
   const scripted = []; // queued strokes and drops: {at, run}
   let onSettle = null;
 
   function wake(ms = 3200) {
     settleUntil = Math.max(settleUntil, performance.now() + ms);
+    if (ms > 0) lastInput = performance.now();
     if (!running && visible && !document.hidden) {
       running = true;
       lastTime = performance.now();
@@ -402,7 +459,13 @@
       running = false;
       return;
     }
-    const dt = Math.min((now - lastTime) / 1000, 1 / 30);
+    const busy = now < settleUntil || scripted.length > 0;
+    // Drifting on its own, 30 fps is plenty and halves the GPU work.
+    if (!busy && now - lastTime < 1000 / 31) {
+      requestAnimationFrame(frame);
+      return;
+    }
+    const dt = Math.min((now - lastTime) / 1000, 1 / 20);
     lastTime = now;
     if (resizeCanvas()) {
       // Keep the ink: the targets are re-made and the pattern re-laid only on a real resize.
@@ -416,13 +479,21 @@
       }
     }
     applyPointer();
-    step(dt);
+    step(dt, now);
     render();
-    if (now < settleUntil || scripted.length) {
+    // Reprint the sheets once the visitor has let the water be for a moment.
+    if (!busy && onSettle && lastInput > lastPrint && now - lastInput > 1500) {
+      lastPrint = now;
+      onSettle();
+    }
+    if (busy || config.current > 0) {
       requestAnimationFrame(frame);
     } else {
       running = false;
-      if (onSettle) onSettle();
+      if (onSettle && lastInput > lastPrint) {
+        lastPrint = now;
+        onSettle();
+      }
     }
   }
 
@@ -437,7 +508,7 @@
   function applyPointer() {
     if (!pointer.moved) return;
     pointer.moved = false;
-    const force = pointer.down ? config.splatForce : config.splatForce * 0.3;
+    const force = pointer.down ? config.splatForce : config.splatForce * 0.6;
     splatVelocity(pointer.x, pointer.y, pointer.dx * force, pointer.dy * force);
   }
 
@@ -499,7 +570,7 @@
   // ── Visibility ────────────────────────────────────────────────────────
   new IntersectionObserver((entries) => {
     visible = entries[0].isIntersecting;
-    if (visible && (scripted.length || performance.now() < settleUntil)) wake(0);
+    if (visible && (config.current > 0 || scripted.length || performance.now() < settleUntil)) wake(0);
   }).observe(canvas);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) wake(0); });
   window.addEventListener("resize", () => wake(200), { passive: true });
