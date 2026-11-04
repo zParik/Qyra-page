@@ -479,6 +479,7 @@
       }
     }
     applyPointer();
+    streamInk(now, dt);
     step(dt, now);
     render();
     // Reprint the sheets once the visitor has let the water be for a moment.
@@ -498,7 +499,31 @@
   }
 
   // ── Pointer ───────────────────────────────────────────────────────────
-  const pointer = { x: 0, y: 0, dx: 0, dy: 0, moved: false, down: false };
+  const pointer = { x: 0, y: 0, dx: 0, dy: 0, moved: false, down: false, downAt: 0, streamed: false };
+
+  // Holding the button streams ink from the pointer, as from a loaded brush
+  // held to the water. The ink switches between indigo and sumi every so
+  // often, so a held stream lays down bands like a real marbler's drops.
+  // A quick click still drops a set of rings (below).
+  const HOLD_MS = 180;
+  function streamInk(now, dt) {
+    if (!pointer.down || now - pointer.downAt < HOLD_MS) return;
+    pointer.streamed = true;
+    const a = aspect();
+    const ink = Math.floor((now - pointer.downAt) / 700) % 2 ? INK.sumi : INK.indigo;
+    use("splat", dye.write, {
+      texelSize: dye.texel, uTarget: dye.read, aspect: a, point: [pointer.x, pointer.y],
+      color: ink.map((c) => c * 5 * dt), radius: 0.00028,
+    });
+    dye.swap();
+    // A gentle outward push, so the stream spreads into the water.
+    use("radial", velocity.write, {
+      texelSize: velocity.texel, uTarget: velocity.read, aspect: a, point: [pointer.x, pointer.y],
+      radius: 0.0012, force: 32 * dt,
+    });
+    velocity.swap();
+    wake(1500);
+  }
 
   function toUv(e) {
     const r = canvas.getBoundingClientRect();
@@ -528,13 +553,23 @@
     lastMove = [x, y];
   }, { passive: true });
   surface.addEventListener("pointerleave", () => { lastMove = null; pointer.down = false; });
-  surface.addEventListener("pointerdown", (e) => { if (!e.target.closest("a, button, [data-no-ink]")) pointer.down = true; });
+  surface.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || e.target.closest("a, button, [data-no-ink]")) return;
+    [pointer.x, pointer.y] = toUv(e);
+    pointer.down = true;
+    pointer.downAt = performance.now();
+    pointer.streamed = false;
+    wake();
+  });
   window.addEventListener("pointerup", () => { pointer.down = false; });
+  window.addEventListener("pointercancel", () => { pointer.down = false; });
 
   // A click drops ink: alternating ink and clear water make new rings.
   let dropCount = 0;
   surface.addEventListener("click", (e) => {
     if (e.target.closest("a, button, [data-no-ink]")) return;
+    // A held press already streamed its ink.
+    if (pointer.streamed) return;
     const [x, y] = toUv(e);
     const t = performance.now();
     const ink = dropCount++ % 2 ? INK.sumi : INK.indigo;
