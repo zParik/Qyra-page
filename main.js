@@ -187,6 +187,26 @@
     sheets.forEach((s) => s.classList.add("is-in"));
   }
 
+  // ── Copy the install command ──────────────────────────────────────────
+  document.querySelectorAll("[data-copy]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const source = document.getElementById(button.dataset.copy);
+      try {
+        await navigator.clipboard.writeText(source.textContent.trim());
+        button.textContent = "Copied";
+      } catch (e) {
+        // No clipboard access: select the text so Ctrl+C works.
+        const range = document.createRange();
+        range.selectNodeContents(source);
+        const sel = getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        button.textContent = "Press Ctrl+C";
+      }
+      setTimeout(() => { button.textContent = "Copy"; }, 2000);
+    });
+  });
+
   // ── The invoice demo ──────────────────────────────────────────────────
   const tools = document.querySelectorAll("[data-tool]");
   const status = document.querySelector("[data-window-status]");

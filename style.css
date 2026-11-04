@@ -563,6 +563,34 @@ p { margin: 0; text-wrap: pretty; }
 .dl-name { font-weight: 600; font-size: 18px; }
 .dl-desc { color: var(--fg1); font-size: 15px; }
 .dl-size { color: var(--fg2); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dl-cmd { margin-top: 44px; max-width: 820px; }
+.dl-cmd h3 { font-size: 20px; letter-spacing: -0.01em; }
+.dl-cmd p { margin-top: 8px; color: var(--fg1); font-size: 15px; }
+.cmd {
+  margin-top: 14px;
+  display: flex; align-items: stretch;
+  border-radius: 8px;
+  background: var(--sumi);
+  color: var(--paper-0);
+  overflow: hidden;
+}
+.cmd code {
+  flex: 1; min-width: 0;
+  padding: 14px 16px;
+  font: 14px/1.5 ui-monospace, "Cascadia Mono", "DejaVu Sans Mono", monospace;
+  overflow-x: auto; white-space: nowrap;
+  scrollbar-width: thin;
+}
+.cmd-copy {
+  flex: none;
+  border: 0; padding: 0 18px;
+  background: var(--indigo);
+  color: var(--paper-0);
+  font: 600 14px/1 var(--font);
+  cursor: pointer;
+}
+.cmd-copy:hover { background: var(--indigo-deep); }
+.dl-arch code { font: 14px ui-monospace, "Cascadia Mono", monospace; }
 .dl-os.is-yours h3::after {
   content: "your system";
   margin-left: auto;
