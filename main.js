@@ -153,6 +153,8 @@
   if (nav && basin) {
     new IntersectionObserver(([entry]) => {
       nav.classList.toggle("is-solid", !entry.isIntersecting);
+      // Paper backings over the ink are not needed on the solid bar.
+      if (!entry.isIntersecting) nav.querySelectorAll(".on-ink").forEach((el) => el.classList.remove("on-ink"));
     }, { rootMargin: "-64px 0px 0px 0px" }).observe(basin);
   }
 

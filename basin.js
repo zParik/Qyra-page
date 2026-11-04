@@ -482,6 +482,10 @@
     streamInk(now, dt);
     step(dt, now);
     render();
+    if (now - lastContrast > 300) {
+      lastContrast = now;
+      updateNavContrast();
+    }
     // Reprint the sheets once the visitor has let the water be for a moment.
     if (!busy && onSettle && lastInput > lastPrint && now - lastInput > 1500) {
       lastPrint = now;
@@ -495,6 +499,53 @@
         lastPrint = now;
         onSettle();
       }
+    }
+  }
+
+  // ── Nav text over the ink ─────────────────────────────────────────────
+  // The nav floats on the water, so ink drifting under a link would hide it.
+  // Read the pixels under each label; when enough of them are inked, the
+  // label gets a paper backing (CSS .on-ink). It counts dark pixels rather
+  // than averaging, since one dark streak through a word is enough to hide
+  // it. Two thresholds keep a label from flickering at the edge.
+  const navLabels = Array.from(document.querySelectorAll(".nav .nav-mark, .nav .nav-links a"));
+  const nav = document.getElementById("nav");
+  let lastContrast = 0;
+  let readBuf = new Uint8Array(0);
+
+  /** Share of the canvas pixels under `rect` that carry visible ink. */
+  function inkCover(rect) {
+    const c = canvas.getBoundingClientRect();
+    const sx = canvas.width / c.width;
+    const sy = canvas.height / c.height;
+    const x = Math.max(0, Math.round((rect.left - c.left) * sx));
+    const w = Math.min(canvas.width - x, Math.round(rect.width * sx));
+    const top = Math.round((rect.top - c.top) * sy);
+    const h = Math.min(canvas.height, Math.round(rect.height * sy));
+    const y = canvas.height - top - h;
+    if (w <= 0 || h <= 0 || y < 0) return null;
+    if (readBuf.length < w * h * 4) readBuf = new Uint8Array(w * h * 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, readBuf);
+    let inked = 0;
+    const n = w * h;
+    for (let i = 0; i < n * 4; i += 4) {
+      if (0.2126 * readBuf[i] + 0.7152 * readBuf[i + 1] + 0.0722 * readBuf[i + 2] < 0.78 * 255) inked++;
+    }
+    return inked / n;
+  }
+
+  function updateNavContrast() {
+    if (!nav || nav.classList.contains("is-solid")) {
+      navLabels.forEach((el) => el.classList.remove("on-ink"));
+      return;
+    }
+    for (const el of navLabels) {
+      const cover = inkCover(el.getBoundingClientRect());
+      if (cover == null) continue;
+      const on = el.classList.contains("on-ink");
+      if (!on && cover > 0.05) el.classList.add("on-ink");
+      else if (on && cover < 0.015) el.classList.remove("on-ink");
     }
   }
 
